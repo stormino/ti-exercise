@@ -1,0 +1,81 @@
+=== Task overview ===
+The task models a sample scenario where sensors (say temperature) are installed in multiple sites.
+These sensors are periodically queried and their value is transmitted to a central server where a computation is performed.
+The results of the computation is persisted so that the values can be extracted for further processing by running simple temporal queries (examples follow).
+
+The pusher.py script provided alongside this document implements the pusher component which simulates a range of sensors and values. We quickly mocked the pusher in python (in case it’s not running out of the box with your linux update the requests library, because that one might be outdated in os).
+
+Your task focuses on the implementation of the components for ingesting/processing incoming data and also querying the results.
+
+=== Pusher, provided ===
+Pusher periodically sends a batch of readings from sensors to a given endpoint. Data is sent by HTTP POST with the following JSON format:
+
+[
+	{"sensor_id":1, "value": 100, "timestamp": 1406810583123},
+	{"sensor_id":2, "value": 130, "timestamp": 1406810583123},
+	{"sensor_id":3, "value": 130, "timestamp": 1406810583789},
+	...
+]
+ 
+where
+ - sensor_id is an integer identifier of a sensor
+ - value, is an arbitrary integer that represents the value sampled by the sensor, e.g. sampled temperature or other (not important for the excercise)
+ - timestamp, milliseconds when the value is sampled (UTC), can be safely assumed that for each sensor time is always increasing
+ 
+Pusher conditions:
+- several pushers can run concurrently
+- all pushers send data to the same consumer endpoint
+- each sensor can be pushed only by a single pusher
+- in a batch each sensor occurs once at most (it might be absent)
+
+
+=== To be implemented ===
+
+1) Endpoint consumer
+2) Sequence extractor(s)
+
+Consumer uses a message queue framework (e.g., RabbitMq, Kafka, etc.) to dispatch sensors readings to one or more sequence extractor(s). The solution should exploit the parallelism due to the fact that data from different sensors are independent.
+
+Requirements:
+- Consumer should be implemented as a HTTP service accepting POSTed JSON array data in the format declared above
+- Consumer does not know apriori sensors id that will be pushed to it
+
+For a given sensor, a sequence is list of strictly increasing values. For example, given the readings of sensor 1
+    ...
+	220, 1406798965999
+	200, 1406798966000
+	130, 1406798966001
+	160, 1406798966003
+	180, 1406798966004
+	180, 1406798966005
+	200, 1406798966006
+	190, 1406798966007
+	150, 1406798966008
+	...
+
+the following sequences shall be extracted:
+	
+	...
+	220, 1406798965999 
+    ------------------
+	200, 1406798966000
+    ------------------
+	130, 1406798966001
+	160, 1406798966003
+	180, 1406798966004
+    ------------------
+	180, 1406798966005
+	200, 1406798966006
+    ------------------
+	190, 1406798966007
+    ------------------
+	150, 1406798966008
+    ...
+
+Extracted sequences should be persisted in a database. The DBMS choice is left to you (either SQL or noSQL), and the data schema as well. The only requirement is that a user should be able to query the DB for obtaining sequences (along with values and timestamps) overlapping with a given time interval and optionally restricted to a given sensor id.
+
+In addition, a file(!) which contains the longest sequence seen so far among all(!) sensors should be updated in real time whenever a complete(!) sequence longer than the recorded one is extracted. 
+
+The solution should be modular, allowing to integrate other types of storages (instead of the chosen DBMS and file) or message queue, for example by modifying/implementing few classes.
+
+What we expect from you is the description of the solution (modularization aspects, data dispatching logic, eventual limits/assumptions), instructions for compiling, executing and optionally testing the solution.
