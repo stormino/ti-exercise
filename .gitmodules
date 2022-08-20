@@ -1,6 +1,8 @@
 [submodule "extractor"]
 	path = extractor
 	url = https://github.com/stormino/extractor.git
+	branch = main
 [submodule "consumer"]
 	path = consumer
 	url = https://github.com/stormino/consumer.git
+	branch = main
