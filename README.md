@@ -79,7 +79,7 @@ To check against MongoDB if the sequence is indeed the longest ever seen, follow
 1. Open a bash for the mongo container:  
 `docker exec -it mongo /bin/bash`
 2. Connect to mongo instance using the brand new fashionable client:  
-`mongosh mongodb://root_user:mongo_r00t_pw!@localhost:27017`
+`mongosh mongodb://root_user:mongo_r00t_pw\!@localhost:27017`
 3. Connect to the application database:  
 `use ti-exercise`
 4. Execute the following aggregation query:  
