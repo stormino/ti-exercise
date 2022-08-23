@@ -4,23 +4,30 @@ services:
     image: vectorized/redpanda:v22.2.2
     container_name: redpanda
     hostname: redpanda
-    ports:
-      - '9092:9092'
-      - '29092:29092'
     command:
       - redpanda
       - start
-      - '--smp'
+      - --smp
       - '1'
-      - '--reserve-memory'
+      - --reserve-memory
       - 0M
-      - '--overprovisioned'
-      - '--node-id'
+      - --overprovisioned
+      - --node-id
       - '0'
-      - '--kafka-addr'
-      - 'PLAINTEXT://0.0.0.0:29092,OUTSIDE://0.0.0.0:9092'
-      - '--advertise-kafka-addr'
-      - 'PLAINTEXT://redpanda:29092,OUTSIDE://localhost:9092'
+      - --kafka-addr
+      - PLAINTEXT://0.0.0.0:29092,OUTSIDE://0.0.0.0:9092
+      - --advertise-kafka-addr
+      - PLAINTEXT://redpanda:29092,OUTSIDE://localhost:9092
+      - --pandaproxy-addr
+      - PLAINTEXT://0.0.0.0:28082,OUTSIDE://0.0.0.0:8082
+      - --advertise-pandaproxy-addr
+      - PLAINTEXT://redpanda:28082,OUTSIDE://localhost:8082
+    ports:
+      - 8081:8081
+      - 8082:8082
+      - 9092:9092
+      - 28082:28082
+      - 29092:29092
   mongo:
     image: mongo:5.0
     container_name: mongo
@@ -31,3 +38,39 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: mongo_r00t_pw!
     ports:
       - "27017:27017"
+  reverse-proxy:
+    image: traefik:v2.8.3
+    command: --api.insecure=true --providers.docker
+    ports:
+      - "80:80"
+      - "8888:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+  consumer:
+    image: ti-exercise-consumer
+    container_name: consumer
+    build:
+        context: ./consumer
+        dockerfile: Dockerfile
+    environment:
+      SERVER_PORT: 18888
+      SPRING_KAFKA_BOOTSTRAP-SERVERS: redpanda:29092
+    ports:
+      - "18888:18888"
+    depends_on:
+      - redpanda
+  extractor:
+    image: ti-exercise-extractor
+    build:
+        context: ./extractor
+        dockerfile: Dockerfile
+    environment:
+      SERVER_PORT: 28888
+      SPRING_KAFKA_BOOTSTRAP-SERVERS: redpanda:29092
+      SPRING_DATA_MONGODB_URL: mongodb://root_user:mongo_r00t_pw!@mongo:27017
+    scale: 3
+    labels:
+      - "traefik.http.routers.extractor.rule=Host(`extractor.docker.localhost`)"
+    depends_on:
+      - redpanda
+      - mongo
